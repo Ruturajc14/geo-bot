@@ -1,9 +1,8 @@
 import os
-import logging
-from flask import Flask
-from threading import Thread
-from telegram import Update
+from flask import Flask, request
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, ContextTypes
+import asyncio
 
 # ================================
 # 🔑 YOUR TELEGRAM BOT TOKEN
@@ -11,52 +10,60 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 BOT_TOKEN = "8547149588:AAE2XmSZsjHgX6fKzrXxQDwobWV9UCzValM"
 
 # ================================
-# 🌐 FLASK WEB SERVER (RENDER)
+# 🌍 YOUR RENDER URL (IMPORTANT)
 # ================================
-app_web = Flask(__name__)
+WEBHOOK_URL = "https://geo-bot-k0f4.onrender.com"
 
-@app_web.route("/")
-def home():
-    return "Bot is running on Render!"
+bot = Bot(token=BOT_TOKEN)
 
-def run_web():
-    port = int(os.environ.get("PORT", 8080))
-    app_web.run(host="0.0.0.0", port=port)
-
-def keep_alive():
-    t = Thread(target=run_web)
-    t.start()
-
-keep_alive()
+app = Flask(__name__)
 
 # ================================
 # 🤖 TELEGRAM COMMAND
 # ================================
 async def geo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = " ".join(context.args)
-
+    
     if not question:
         await update.message.reply_text("✅ Bot is working!\nExample:\n/geo Will China invade Taiwan?")
         return
-
-    await update.message.reply_text(f"🌍 Geopolitical analysis coming soon...\nQuestion: {question}")
+    
+    await update.message.reply_text(f"🌍 Geopolitical analysis:\n{question}")
 
 # ================================
-# 🚀 START TELEGRAM BOT
+# TELEGRAM APP
 # ================================
-async def main():
-    logging.basicConfig(level=logging.INFO)
+application = Application.builder().token(BOT_TOKEN).build()
+application.add_handler(CommandHandler("geo", geo))
 
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("geo", geo))
+# ================================
+# WEBHOOK ROUTE
+# ================================
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    asyncio.run(application.process_update(update))
+    return "ok"
 
-    print("🤖 Telegram bot started...")
+# ================================
+# ROOT ROUTE (HEALTH CHECK)
+# ================================
+@app.route("/")
+def home():
+    return "🤖 Geopolitical Bot is running with webhook!"
 
-    await app.initialize()
-    await app.start()
-    await app.bot.delete_webhook(drop_pending_updates=True)  # IMPORTANT
-    await app.run_polling()
+# ================================
+# SET WEBHOOK
+# ================================
+def set_webhook():
+    bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
+    print("✅ Webhook set!")
 
+set_webhook()
+
+# ================================
+# START FLASK SERVER
+# ================================
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
