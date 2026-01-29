@@ -17,7 +17,7 @@ import os
 # ================================
 # 🔑 YOUR TELEGRAM BOT TOKEN
 # ================================
-BOT_TOKEN = 8547149588:AAE2XmSZsjHgX6fKzrXxQDwobWV9UCzValM
+BOT_TOKEN ="8547149588:AAE2XmSZsjHgX6fKzrXxQDwobWV9UCzValM"
 
 # ================================
 # 🌐 KEEP-ALIVE WEB SERVER (RENDER)
@@ -180,3 +180,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
