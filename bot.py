@@ -1,32 +1,36 @@
 # ================================
-# 🌍 GEOPOLITICAL AI TELEGRAM BOT
+# 🌍 GEOPOLITICAL TELEGRAM BOT (RENDER FIXED)
 # ================================
 
+import logging
 import requests
 import feedparser
+import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes
 from flask import Flask
 from threading import Thread
 import re
 import datetime
+import os
 
 # ================================
 # 🔑 YOUR TELEGRAM BOT TOKEN
 # ================================
-BOT_TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE"
+BOT_TOKEN = 8547149588:AAE2XmSZsjHgX6fKzrXxQDwobWV9UCzValM
 
 # ================================
-# 🌐 KEEP-ALIVE WEB SERVER (24/7)
+# 🌐 KEEP-ALIVE WEB SERVER (RENDER)
 # ================================
-web_app = Flask("geo_bot")
+web_app = Flask(__name__)
 
 @web_app.route("/")
 def home():
-    return "🌍 Geopolitical Bot is running 24/7!"
+    return "🌍 Geopolitical Bot is running!"
 
 def run_web():
-    web_app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    web_app.run(host="0.0.0.0", port=port)
 
 def keep_alive():
     t = Thread(target=run_web)
@@ -39,19 +43,19 @@ keep_alive()
 # ================================
 def get_news_score(query):
     try:
-        url = f"https://news.google.com/rss/search?q={query}+geopolitics"
+        url = f"https://news.google.com/rss/search?q={query}+war"
         feed = feedparser.parse(url)
         articles = feed.entries[:8]
 
         score = 0
-        keywords_high = ["war", "attack", "strike", "invasion", "military", "missile"]
-        keywords_mid = ["tension", "sanction", "threat", "conflict", "troops"]
+        high = ["war", "attack", "strike", "invasion", "military", "missile"]
+        mid = ["tension", "sanction", "threat", "conflict", "troops"]
 
         for a in articles:
             title = a.title.lower()
-            if any(k in title for k in keywords_high):
+            if any(k in title for k in high):
                 score += 2
-            elif any(k in title for k in keywords_mid):
+            elif any(k in title for k in mid):
                 score += 1
 
         return min(score, 10)
@@ -59,59 +63,30 @@ def get_news_score(query):
         return 2
 
 # ================================
-# 🪖 MILITARY SIGNAL ENGINE (LOGIC)
+# 🧠 GEO LOGIC SCORES
 # ================================
-def military_score(question):
-    q = question.lower()
-    if any(word in q for word in ["invade", "war", "attack"]):
-        return 3  # wars are hard to start suddenly
-    return 2
-
-# ================================
-# 🧠 REALITY SCORE (GEOPOLITICS LOGIC)
-# ================================
-def reality_score(question):
-    q = question.lower()
-
-    hard_events = ["invade", "full war", "nuclear"]
-    medium_events = ["strike", "military action", "sanctions"]
-
-    if any(e in q for e in hard_events):
-        return 2
-    if any(e in q for e in medium_events):
-        return 4
-    return 5
-
-# ================================
-# ⏳ TIME LOGIC SCORE
-# ================================
-def time_score(question):
-    q = question.lower()
-
-    # If question mentions short deadline
-    if re.search(r"by\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", q):
-        return 2
-    return 5
-
-# ================================
-# 🐋 POLYMARKET / MARKET SIGNAL LOGIC (SIMPLIFIED)
-# ================================
-def market_score(question):
-    # Real logic: geopolitics markets usually exaggerate war
-    q = question.lower()
+def reality_score(q):
+    q = q.lower()
     if "invade" in q or "war" in q:
-        return 4  # markets hype wars
+        return 2
     return 5
 
-# ================================
-# 🌪️ CHAOS RISK SCORE
-# ================================
+def military_score(q):
+    return 3 if "war" in q or "invade" in q else 2
+
+def time_score(q):
+    if re.search(r"by\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", q.lower()):
+        return 2
+    return 5
+
+def market_score(q):
+    return 4 if "war" in q or "invade" in q else 5
+
 def chaos_score():
-    # geopolitics always has uncertainty
     return 4
 
 # ================================
-# 📊 PROBABILITY ENGINE (REAL MODEL)
+# 📊 PROBABILITY ENGINE
 # ================================
 def calculate_probability(R, N, M, P, T, C):
     raw = (
@@ -121,14 +96,13 @@ def calculate_probability(R, N, M, P, T, C):
         P * 0.15 +
         T * 0.15 +
         C * 0.10
-    ) * 10  # convert to %
+    ) * 10
 
-    # Extreme geopolitics filter (war/invasion are rare)
-    final_prob = raw * 0.3
+    final_prob = raw * 0.3  # war rarity filter
     return round(final_prob, 2)
 
 # ================================
-# 💰 TRADING DECISION ENGINE
+# 💰 TRADING DECISION
 # ================================
 def trading_decision(prob):
     if prob > 60:
@@ -139,18 +113,15 @@ def trading_decision(prob):
         return "🟡 WAIT", "$0–50"
 
 # ================================
-# 🤖 TELEGRAM COMMAND: /geo
+# 🤖 TELEGRAM COMMAND
 # ================================
 async def geo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     question = " ".join(context.args)
 
     if not question:
-        await update.message.reply_text(
-            "❗ Example:\n/geo Will the US invade Venezuela by Jan 31?"
-        )
+        await update.message.reply_text("❗ Example:\n/geo Will US invade Venezuela?")
         return
 
-    # Scores
     R = reality_score(question)
     N = get_news_score(question)
     M = military_score(question)
@@ -173,37 +144,39 @@ async def geo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 🧠 Scores (0–10):
 Reality: {R}/10
-News Strength: {N}/10
-Military Signals: {M}/10
-Market/Polymarket: {P}/10
+News: {N}/10
+Military: {M}/10
+Market: {P}/10
 Time Logic: {T}/10
 Chaos Risk: {C}/10
 
-📊 Final Probability:
+📊 Probability:
 ➡️ {prob}%
 
 💰 Trading Decision:
 ➡️ {decision}
-💵 Suggested Capital (for $200): {capital}
+💵 Suggested Capital: {capital}
 
-🧠 Interpretation:
-- <30% = Market overhyping event
-- 30–60% = Uncertain risk
-- >60% = Serious geopolitical escalation
-
-⚠️ This is analytical intelligence, not financial advice.
+⚠️ Analysis only, not financial advice.
 """
-
     await update.message.reply_text(reply)
 
 # ================================
-# 🚀 START BOT
+# 🚀 START BOT (RENDER SAFE)
 # ================================
-def main():
-    app = ApplicationBuilder().token().build()
+async def main():
+    logging.basicConfig(level=logging.INFO)
+
+    app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("geo", geo))
-    print("🌍 Geopolitical AI Bot is running...")
-    app.run_polling()
+
+    print("🌍 Geopolitical Bot started on Render...")
+
+    await app.initialize()
+    await app.start()
+    await app.bot.delete_webhook(drop_pending_updates=True)  # IMPORTANT FIX
+    await app.stop()  # prevent webhook conflict
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
