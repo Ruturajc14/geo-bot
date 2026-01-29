@@ -65,6 +65,7 @@ set_webhook()
 # START FLASK SERVER
 # ================================
 if __name__ == "__main__":
-   port = int(os.environ["PORT"])
-    app.run(host="0.0.0.0", port=port)
+    set_webhook()
+    port = int(os.environ["PORT"])
+    app.run(host="0.0.0.0", port=port) 
 
